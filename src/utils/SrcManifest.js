@@ -8,7 +8,9 @@ class SrcManifest {
         const name = file_name[0]
         const ext = file_name[2]
         
-        manifest[`${name}.${ext}`] = filename
+        if (typeof ext !== 'undefined' && ext !== 'html') {
+          manifest[`${name}.${ext}`] = filename
+        }
       }
 
       compilation.assets['manifest.json'] = {

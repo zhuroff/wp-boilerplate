@@ -1,17 +1,16 @@
+const templating_mode = 'php' // variants: 'php', 'pug'
 const PATH = require('path')
-//const fs = require('fs')
+const fs = require('fs')
+const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
+const HTMLWebpackPlugin = require('html-webpack-plugin')
 const SrcManifest = require('./src/utils/SrcManifest')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 const OptimizeCssAssetsWebpackPlugin = require('optimize-css-assets-webpack-plugin')
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
-const { CleanWebpackPlugin } = require('clean-webpack-plugin')
+const BrowserSyncPlugin = require('browser-sync-webpack-plugin')
+const pug_pages = fs.readdirSync(PATH.resolve(__dirname, 'src/pug/pages/')).filter(fileName => fileName.endsWith('.pug'))
 const is_dev = process.env.NODE_ENV === 'development'
-// const paths = {
-// 	pug: PATH.resolve(__dirname, 'src/pug/pages/'),
-// 	scss: PATH.resolve(__dirname, 'src/scss'),
-// 	js: PATH.resolve(__dirname, 'src/js'),
-// 	build: PATH.resolve(__dirname, 'dist')
-// }
 
 const setFilename = ext => `[name].[contenthash:7].${ext}`
 
@@ -35,26 +34,15 @@ const fileOptimization = () => {
 const addPlugins = () => {
   const plugins = [
     new CleanWebpackPlugin(),
-		// ...PUG_PAGES.map(page => new HTMLWebpackPlugin({
-		// 	template: `${paths.pug}/${page}`,
-		// 	filename: `./${page.replace(/\.pug/, '.html')}`,
-		// 	minify: false
-		// })),
 
-		// ,
-
-		// new LiveReloadPlugin({
-		// 	appendScriptTag: true
-		// }),
-
-		// new CopyWebpackPlugin({
-		// 	patterns: [
-		// 		{
-		// 			from: PATH.resolve(__dirname, 'src/static'),
-		// 			to: PATH.resolve(__dirname, `${paths.dist}/static`)
-		// 		}
-		// 	]
-		// }),
+		new CopyWebpackPlugin({
+			patterns: [
+				{
+					from: PATH.resolve(__dirname, 'src/static'),
+					to: PATH.resolve(__dirname, 'dist/static')
+				}
+			]
+		}),
 
 		new MiniCssExtractPlugin({
       filename: setFilename('css'),
@@ -63,6 +51,28 @@ const addPlugins = () => {
 
     new SrcManifest()
 	]
+
+	if (templating_mode === 'pug') {
+		plugins.push(
+			...pug_pages.map(page => new HTMLWebpackPlugin({
+				template: `${PATH.resolve(__dirname, 'src/pug/pages/')}/${page}`,
+				filename: `./${page.replace(/\.pug/, '.html')}`,
+				minify: false
+			}))
+		)
+	}
+
+	if (is_dev) {
+		plugins.push(
+			new BrowserSyncPlugin({
+				files: ['./src/', '*.php'],
+				reloadDelay: 0,
+				host: 'localhost',
+				port: 8080,
+				proxy: 'http://wp-boilerplate:8080/'
+			})
+		)
+	}
 
 	return plugins
 }
@@ -100,7 +110,6 @@ const cssLoaders = loader => {
   const loaders = [{
 		loader: MiniCssExtractPlugin.loader,
 		options: {
-			//hmr: is_dev,
 			publicPath: '../../../'
 		}
 	}, 'css-loader']
@@ -152,17 +161,17 @@ module.exports = {
 				use: cssLoaders('sass-loader')
 			},
 
-      // {
-			// 	test: /\.pug$/,
-			// 	loader: 'pug-loader',
-			// 	rules: {
-			// 		pretty: true
-			// 	}
-			// },
+      {
+				test: /\.pug$/,
+				loader: 'pug-loader',
+				options: {
+					pretty: true
+				}
+			},
 
       {
 				test: /\.(png|jpeg|jpg|svg|gif|webp)$/,
-				loader: 'file-loader',
+				loader: 'url-loader',
 				options: {
 					name: `${PATH.resolve(__dirname, 'dist')}/[path][name].[ext]`
 				}
@@ -170,7 +179,7 @@ module.exports = {
 
 			{
 				test: /\.(ttf|woff|woff2)$/,
-				loader: 'file-loader',
+				loader: 'url-loader',
 				options: {
 					name: `${PATH.resolve(__dirname, 'dist')}/[path][name].[ext]`
 				}
@@ -178,10 +187,5 @@ module.exports = {
     ]
   },
 
-  //devtool: is_dev ? 'source-map' : '',
-
-  // devServer: {
-  //   port: 4200,
-	// 	hot: is_dev
-  // }
+  //devtool: is_dev ? 'source-map' : ''
 }
