@@ -1,0 +1,4 @@
+- var imgPath = `static/img`
+
+mixin getImage(filename, classname = null)
+	img(src=`/${imgPath}/${filename}` class= classname || '')

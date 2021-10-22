@@ -1,5 +1,5 @@
 <?php get_header(); ?>
 <main>
-	Index template...
+<h1>Page title</h1>
 </main>
 <?php get_footer(); ?>

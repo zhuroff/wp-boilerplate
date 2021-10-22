@@ -1,145 +1,155 @@
-const templating_mode = 'php' // variants: 'php', 'pug'
+const THEME_NAME = 'boilerplate'
 const PATH = require('path')
 const fs = require('fs')
-const { CleanWebpackPlugin } = require('clean-webpack-plugin')
 const CopyWebpackPlugin = require('copy-webpack-plugin')
 const HTMLWebpackPlugin = require('html-webpack-plugin')
 const SrcManifest = require('./src/utils/SrcManifest')
 const MiniCssExtractPlugin = require('mini-css-extract-plugin')
-const OptimizeCssAssetsWebpackPlugin = require('optimize-css-assets-webpack-plugin')
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin')
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin')
 const BrowserSyncPlugin = require('browser-sync-webpack-plugin')
-const pug_pages = fs.readdirSync(PATH.resolve(__dirname, 'src/pug/pages/')).filter(fileName => fileName.endsWith('.pug'))
-const is_dev = process.env.NODE_ENV === 'development'
+const pugPages = fs.readdirSync(PATH.resolve(__dirname, 'src/pug/pages/')).filter(fileName => fileName.endsWith('.pug'))
+const isDev = process.env.NODE_ENV === 'frontend' || process.env.NODE_ENV === 'backend'
+
+const browserSyncConfig = {
+  frontend: {
+    files: './src',
+    host: 'localhost',
+    port: 4200,
+    server: { baseDir: './dist' }
+  },
+
+  backend: {
+    files: '*.php',
+    host: THEME_NAME,
+    port: 8080,
+    proxy: `http://${THEME_NAME}/`
+  }
+}
 
 const setFilename = ext => `[name].[contenthash:7].${ext}`
 
 const fileOptimization = () => {
-	const config = {
-		splitChunks: {
-			chunks: 'all'
-		}
-	}
+  const config = {
+    splitChunks: {
+      chunks: 'all'
+    }
+  }
 
-	if (!is_dev) {
-		config.minimizer = [
-			new OptimizeCssAssetsWebpackPlugin(),
-			new UglifyJsPlugin()
-		]
-	}
+  if (!isDev) {
+    config.minimizer = [
+      new CssMinimizerPlugin(),
+      new CssMinimizerPlugin(),
+      new UglifyJsPlugin()
+    ]
+  }
 
-	return config
+  return config
 }
 
 const addPlugins = () => {
   const plugins = [
-    new CleanWebpackPlugin(),
+    new CopyWebpackPlugin({
+      patterns: [
+        {
+          from: PATH.resolve(__dirname, 'src/static'),
+          to: PATH.resolve(__dirname, 'dist/static')
+        }
+      ]
+    }),
 
-		new CopyWebpackPlugin({
-			patterns: [
-				{
-					from: PATH.resolve(__dirname, 'src/static'),
-					to: PATH.resolve(__dirname, 'dist/static')
-				}
-			]
-		}),
-
-		new MiniCssExtractPlugin({
+    new MiniCssExtractPlugin({
       filename: setFilename('css'),
       chunkFilename: 'chunk.[id].css',
-		}),
+    }),
 
     new SrcManifest()
-	]
+  ]
 
-	if (templating_mode === 'pug') {
-		plugins.push(
-			...pug_pages.map(page => new HTMLWebpackPlugin({
-				template: `${PATH.resolve(__dirname, 'src/pug/pages/')}/${page}`,
-				filename: `./${page.replace(/\.pug/, '.html')}`,
-				minify: false
-			}))
-		)
-	}
+  if (process.env.NODE_ENV === 'frontend' || process.env.NODE_ENV === 'production') {
+    plugins.push(
+      ...pugPages.map(page => new HTMLWebpackPlugin({
+        template: `${PATH.resolve(__dirname, 'src/pug/pages/')}/${page}`,
+        filename: `./${page.replace(/\.pug/, '.html')}`,
+        minify: false
+      }))
+    )
+  }
 
-	if (is_dev) {
-		plugins.push(
-			new BrowserSyncPlugin({
-				files: ['./src/', '*.php'],
-				reloadDelay: 0,
-				host: 'localhost',
-				port: 8080,
-				proxy: 'http://wp-boilerplate:8080/'
-			})
-		)
-	}
+  if (isDev) {
+    plugins.push(
+      new BrowserSyncPlugin({
+        ...browserSyncConfig[process.env.NODE_ENV],
+        reloadDelay: 0
+      })
+    )
+  }
 
-	return plugins
+  return plugins
 }
 
 const babelOptions = preset => {
   const options = {
-		presets: [
-			'@babel/preset-env'
-		],
+    presets: [
+      '@babel/preset-env'
+    ],
 
-		plugins: [
-			'@babel/plugin-proposal-class-properties'
-		]
-	}
+    plugins: [
+      '@babel/plugin-proposal-class-properties'
+    ]
+  }
 
-	if (preset) options.presets.push(preset)
+  if (preset) options.presets.push(preset)
 
-	return options
+  return options
 }
 
 const jsLoaders = () => {
   const loaders = [
-		{
-			loader: 'babel-loader',
-			options: babelOptions()
-		}
-	]
+    {
+      loader: 'babel-loader',
+      options: babelOptions()
+    }
+  ]
 
-	if (is_dev) loaders.push('eslint-loader')
-
-	return loaders
+  return loaders
 }
 
 const cssLoaders = loader => {
   const loaders = [{
-		loader: MiniCssExtractPlugin.loader,
-		options: {
-			publicPath: '../../../'
-		}
-	}, 'css-loader']
+    loader: MiniCssExtractPlugin.loader,
+    options: {
+      publicPath: '../../../'
+    }
+  }, 'css-loader']
 
-	if (loader) loaders.push(loader)
+  if (loader) loaders.push(loader)
 
-	return loaders
+  return loaders
 }
 
 module.exports = {
   context: PATH.resolve(__dirname, 'src'),
 
   entry: {
-		main: './index.js'
-	},
+    main: './index.js'
+  },
 
   output: {
     filename: setFilename('js'),
-    path: PATH.resolve(__dirname, 'dist')
+    path: PATH.resolve(__dirname, 'dist'),
+    clean: true
   },
 
-	resolve: {
-		alias: {
-			'~': PATH.resolve(__dirname, 'src')
-		}
-	},
+  resolve: {
+    alias: {
+      '~': PATH.resolve(__dirname, 'src')
+    }
+  },
 
   optimization: fileOptimization(),
 
-  mode: is_dev ? 'development' : 'production',
+  mode: isDev ? 'development' : 'production',
 
   plugins: addPlugins(),
 
@@ -152,40 +162,38 @@ module.exports = {
       },
 
       {
-				test: /\.css$/,
-				use: cssLoaders()
-			},
-
-			{
-				test: /\.s[ac]ss$/,
-				use: cssLoaders('sass-loader')
-			},
+        test: /\.css$/,
+        use: cssLoaders()
+      },
 
       {
-				test: /\.pug$/,
-				loader: 'pug-loader',
-				options: {
-					pretty: true
-				}
-			},
+        test: /\.s[ac]ss$/,
+        use: cssLoaders('sass-loader')
+      },
 
       {
-				test: /\.(png|jpeg|jpg|svg|gif|webp)$/,
-				loader: 'url-loader',
-				options: {
-					name: `${PATH.resolve(__dirname, 'dist')}/[path][name].[ext]`
-				}
-			},
+        test: /\.pug$/,
+        loader: 'pug-loader',
+        options: {
+          pretty: true
+        }
+      },
 
-			{
-				test: /\.(ttf|woff|woff2)$/,
-				loader: 'url-loader',
-				options: {
-					name: `${PATH.resolve(__dirname, 'dist')}/[path][name].[ext]`
-				}
-			}
+      {
+        test: /\.(png|jpeg|jpg|svg|gif|webp)$/,
+        loader: 'url-loader',
+        options: {
+          name: `${PATH.resolve(__dirname, 'dist')}/[path][name].[ext]`
+        }
+      },
+
+      {
+        test: /\.(ttf|woff|woff2)$/,
+        loader: 'url-loader',
+        options: {
+          name: `${PATH.resolve(__dirname, 'dist')}/[path][name].[ext]`
+        }
+      }
     ]
-  },
-
-  //devtool: is_dev ? 'source-map' : ''
+  }
 }
