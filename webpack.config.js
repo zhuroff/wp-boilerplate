@@ -14,14 +14,12 @@ const isDev = process.env.NODE_ENV === 'frontend' || process.env.NODE_ENV === 'b
 const browserSyncConfig = {
   frontend: {
     files: './src',
-    host: 'localhost',
     port: 4200,
     server: { baseDir: './dist' }
   },
 
   backend: {
     files: '*.php',
-    host: THEME_NAME,
     port: 8080,
     proxy: `http://${THEME_NAME}/`
   }
@@ -80,7 +78,8 @@ const addPlugins = () => {
     plugins.push(
       new BrowserSyncPlugin({
         ...browserSyncConfig[process.env.NODE_ENV],
-        reloadDelay: 0
+        reloadDelay: 0,
+        host: 'localhost'
       })
     )
   }
@@ -116,12 +115,16 @@ const jsLoaders = () => {
 }
 
 const cssLoaders = loader => {
-  const loaders = [{
-    loader: MiniCssExtractPlugin.loader,
-    options: {
-      publicPath: '../../../'
+  const loaders = [
+    {
+      loader: MiniCssExtractPlugin.loader
+    },
+    
+    {
+      loader: 'css-loader',
+      options: { url: false }
     }
-  }, 'css-loader']
+  ]
 
   if (loader) loaders.push(loader)
 
@@ -143,7 +146,8 @@ module.exports = {
 
   resolve: {
     alias: {
-      '~': PATH.resolve(__dirname, 'src')
+      '~': PATH.resolve(__dirname, 'src'),
+      '@': PATH.resolve(__dirname, 'dist')
     }
   },
 
