@@ -1,9 +1,6 @@
-// import * as f from '~/js/test'
-// import variable from '~/js/test'
-// import {} from '~/js/test'
-import {} from '~/js/vendors.js'
 import '~/scss/app.scss'
+import DefaultClass from './js/module'
 
-$('h1').html('Changed title')
+const moduleInstance = new DefaultClass('Hi there!')
 
-console.log(Splide)
+moduleInstance.printGreetings()
